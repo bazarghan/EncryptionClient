@@ -1,5 +1,5 @@
 import json
-
+from constant import SERVER_URL, AP, AC, BP, BC, CP, CC, DC, DP
 import numpy as np
 import requests
 import matplotlib.pyplot as plt
@@ -9,14 +9,14 @@ from paillier import Encryption
 
 
 def input_controller(r_inp):
-    my_url = f'http://localhost:8000/input-controller/?inputs={r_inp}'
+    my_url = f'{SERVER_URL}/input-controller/?inputs={r_inp}'
     res = requests.get(my_url)
     outputs = res.json().get('outputs')
     return outputs
 
 
 def reset_controller():
-    my_url = 'http://localhost:8000/reset-controller/'
+    my_url = f'{SERVER_URL}/reset-controller/'
     res = requests.get(my_url)
     if res.status_code == 200:
         return True
@@ -64,34 +64,21 @@ def sim_enc(tf_input, Gp, sim_encoder, encryption_sim):
     return output, time_sim
 
 
-Ap = np.array([[0.99998, 0.0197], [-0.0197, 0.97025]])
-Bp = np.array([[0.0000999], [0.0098508]])
-Cp = np.array([[1, 0]])
-Dp = np.array([[0]])
-
 initial_cond = np.zeros((2, 1))
 initial_cond[0] = 1
-plant = ss(Ap, Bp, Cp, Dp, initial_cond)
-
-# Controller State Space
-Ac = np.array([[1, 0.0063], [0, 0.3678]])
-Bc = np.array([[0], [0.0063]])
-Cc = np.array([[10, -99.90]])
-Dc = np.array([[3]])
-
-controller = ss(Ac, Bc, Cc, Dc)
+plant = ss(np.array(AP), np.array(BP), np.array(CP), np.array(DP), initial_cond)
+controller = ss(np.array(AC), np.array(BC), np.array(CC), np.array(DC))
 
 # Encrypted Control statespace
 Enc = Encryption(512)
 n, g = Enc.publicKey()
 
-
 encoder = MED(n, 100)
 
-Ae = encoder.encode(Ac)
-Be = encoder.encode(Bc)
-Ce = encoder.encode(Cc)
-De = encoder.encode(Dc)
+Ae = encoder.encode(np.array(AC))
+Be = encoder.encode(np.array(BC))
+Ce = encoder.encode(np.array(CC))
+De = encoder.encode(np.array(DC))
 
 initial_value = encoder.encode(np.zeros((2, 1)))
 encrypted_initial_value = Enc.encrypt_mat(initial_value)
@@ -100,7 +87,7 @@ payload = {
     'A': Ae, 'B': Be, 'C': Ce, 'D': De, 'init': encrypted_initial_value, 'n': 1
 }
 
-url = 'http://localhost:8000/create-controller/'
+url = f'{SERVER_URL}/create-controller/'
 json_payload = json.dumps(payload)
 response = requests.post(url, data=json_payload)
 

@@ -3,7 +3,7 @@ import sys
 import requests
 from miller import find_prime, random_number
 from base64 import b64encode, b64decode
-
+from constant import SERVER_URL
 sys.setrecursionlimit(10 ** 5)
 
 
@@ -20,7 +20,7 @@ def number_to_string(num):
 
 
 def public_key_to_pem(public_key):
-    url = f'http://localhost:8000/setpbk/?public_key={public_key[0]},{public_key[1]}'
+    url = f'{SERVER_URL}/setpbk/?public_key={public_key[0]},{public_key[1]}'
 
     response = requests.get(url)
     if response.status_code != 200:
