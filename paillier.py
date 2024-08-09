@@ -1,6 +1,8 @@
 import random
 import sys
+import requests
 from miller import find_prime, random_number
+from base64 import b64encode, b64decode
 
 sys.setrecursionlimit(10 ** 5)
 
@@ -17,19 +19,77 @@ def number_to_string(num):
     return num.to_bytes((num.bit_length() + 7) // 8, 'big').decode()
 
 
+def public_key_to_pem(public_key):
+    url = f'http://localhost:8000/setpbk/?public_key={public_key[0]},{public_key[1]}'
+
+    response = requests.get(url)
+    if response.status_code != 200:
+        print("There is an Error in Setting the Server Public Key")
+        exit(0)
+
+    public_key_data = f"{public_key[0]},{public_key[1]}".encode('utf-8')
+    b64_encoded_key = b64encode(public_key_data).decode('utf-8')
+    line_length = 64
+    b64_encoded_key_lines = [b64_encoded_key[i:i + line_length] for i in range(0, len(b64_encoded_key), line_length)]
+    formatted_key = '\n'.join(b64_encoded_key_lines)
+    pem_key = f"-----BEGIN PAILLIER PUBLIC KEY-----\n{formatted_key}\n-----END PAILLIER PUBLIC KEY-----"
+
+    return pem_key
+
+
+def private_key_to_pem(private_key):
+    private_key_data = f"{private_key[0]},{private_key[1]}".encode('utf-8')
+    b64_encoded_key = b64encode(private_key_data).decode('utf-8')
+    line_length = 64
+    b64_encoded_key_lines = [b64_encoded_key[i:i + line_length] for i in range(0, len(b64_encoded_key), line_length)]
+    formatted_key = '\n'.join(b64_encoded_key_lines)
+    pem_key = f"-----BEGIN PAILLIER PRIVATE KEY-----\n{formatted_key}\n-----END PAILLIER PRIVATE KEY-----"
+    return pem_key
+
+
+def pem_to_public_key(pem_key):
+    header = "-----BEGIN PAILLIER PUBLIC KEY-----"
+    footer = "-----END PAILLIER PUBLIC KEY-----"
+    pem_key = pem_key.replace(header, '').replace(footer, '').strip()
+    b64_encoded_key = ''.join(pem_key.split())
+    public_key_data = b64decode(b64_encoded_key).decode('utf-8')
+    n, g = map(int, public_key_data.split(','))
+
+    return n, g
+
+
+def pem_to_private_key(pem_key):
+    header = "-----BEGIN PAILLIER PRIVATE KEY-----"
+    footer = "-----END PAILLIER PRIVATE KEY-----"
+    pem_key = pem_key.replace(header, '').replace(footer, '').strip()
+    b64_encoded_key = ''.join(pem_key.split())
+    public_key_data = b64decode(b64_encoded_key).decode('utf-8')
+    lamb, mui = map(int, public_key_data.split(','))
+
+    return lamb, mui
+
+
 class Encryption:
 
-    def __init__(self, security=256):
+    def __init__(self, security=256, generate=False):
         self.g = None
         self.n = None
         self.lamb = None
         self.mui = None
-        a = random_number(security, 2)
-        search_range = random_number(64, 2)
-        b = random_number(security, 2)
-        self.p = find_prime(a, a + search_range)
-        self.q = find_prime(b, b + search_range)
-        self.keyGen()
+        if generate:
+            a = random_number(security, 2)
+            search_range = random_number(64, 2)
+            b = random_number(security, 2)
+            self.p = find_prime(a, a + search_range)
+            self.q = find_prime(b, b + search_range)
+            self.keyGen()
+        else:
+            with open('pub.crt', 'r') as f:
+                pem_public_key = f.read()
+            self.n, self.g = pem_to_public_key(pem_public_key)
+            with open('private.crt', 'r') as f:
+                pem_private_key = f.read()
+            self.lamb, self.mui = pem_to_private_key(pem_private_key)
 
     def pow_mod(self, a, n, mod):
         if n == 0:
@@ -78,8 +138,16 @@ class Encryption:
         self.lamb = lamb
         self.mui = mui
 
+        pem_private_key = private_key_to_pem([self.lamb, self.mui])
+        with open('private.crt', 'w') as f:
+            f.write(pem_private_key)
+
+        pem_public_key = public_key_to_pem([self.n, self.g])
+        with open('pub.crt', 'w') as f:
+            f.write(pem_public_key)
+
     def publicKey(self):
-        return self.g, self.n
+        return self.n, self.g
 
     def privateKey(self):
         return self.lamb, self.mui
