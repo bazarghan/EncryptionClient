@@ -1,5 +1,5 @@
 import json
-from constant import SERVER_URL, AP, AC, BP, BC, CP, CC, DC, DP
+from constant import SERVER_URL, AP, AC, BP, BC, CP, CC, DC, DP, INITIAL_COND
 import numpy as np
 import requests
 import matplotlib.pyplot as plt
@@ -64,9 +64,7 @@ def sim_enc(tf_input, Gp, sim_encoder, encryption_sim):
     return output, time_sim
 
 
-initial_cond = np.zeros((2, 1))
-initial_cond[0] = 1
-plant = ss(np.array(AP), np.array(BP), np.array(CP), np.array(DP), initial_cond)
+plant = ss(np.array(AP), np.array(BP), np.array(CP), np.array(DP), np.array(INITIAL_COND))
 controller = ss(np.array(AC), np.array(BC), np.array(CC), np.array(DC))
 
 # Encrypted Control statespace
