@@ -2,7 +2,6 @@ import numpy as np
 
 
 class StateSpace:
-
     def __init__(self, A, B, C, D, initial_value=None):
         self.A = A
         self.B = B
@@ -35,7 +34,6 @@ class StateSpace:
 
 
 class MED:  # matrix encode decode
-
     def __init__(self, n, scale_factor):
         self.n = n
         self.scale_factor = scale_factor
@@ -43,7 +41,7 @@ class MED:  # matrix encode decode
     def decode(self, A, iteration=1):
         if np.isscalar(A):
             res = ((A + self.n // 2) % self.n) - self.n // 2
-            res /= (self.scale_factor ** iteration)
+            res /= self.scale_factor**iteration
             return res
 
         N = len(A)
@@ -52,12 +50,12 @@ class MED:  # matrix encode decode
         for i in range(N):
             for j in range(M):
                 A_decode[i, j] = ((A[i][j] + self.n // 2) % self.n) - self.n // 2
-                A_decode[i, j] /= (self.scale_factor ** iteration)
+                A_decode[i, j] /= self.scale_factor**iteration
         return A_decode
 
     def encode(self, A, iteration=1):
         if np.isscalar(A):
-            res = int(A * self.scale_factor ** iteration)
+            res = int(A * self.scale_factor**iteration)
             if A < 0:
                 res += self.n
             return res
@@ -66,11 +64,7 @@ class MED:  # matrix encode decode
         A_encode = [[0] * M for _ in range(N)]
         for i in range(N):
             for j in range(M):
-                A_encode[i][j] = int(A[i, j] * self.scale_factor ** iteration)
+                A_encode[i][j] = int(A[i, j] * self.scale_factor**iteration)
                 if A_encode[i][j] < 0:
                     A_encode[i][j] += self.n
         return A_encode
-
-
-
-

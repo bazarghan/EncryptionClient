@@ -1,4 +1,5 @@
-SERVER_URL = 'http://localhost:8000'
+SERVER_URL = 'http://45.11.93.9:8000/paillier'
+
 
 # Plant State Space
 INITIAL_COND = [[1], [0]]

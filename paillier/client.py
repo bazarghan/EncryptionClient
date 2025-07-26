@@ -8,8 +8,29 @@ from ss import StateSpace as ss, MED
 from paillier import Encryption
 
 
-def input_controller(r_inp):
-    my_url = f'{SERVER_URL}/input-controller/?inputs={r_inp}'
+def create_controller(c_encoder):
+    Ae = c_encoder.encode(np.array(AC))
+    Be = c_encoder.encode(np.array(BC))
+    Ce = c_encoder.encode(np.array(CC))
+    De = c_encoder.encode(np.array(DC))
+
+    encrypted_initial_value = Enc.encrypt_mat(initial_value)
+
+    payload = {
+        'A': Ae, 'B': Be, 'C': Ce, 'D': De, 'init': encrypted_initial_value, 'n': 2
+    }
+
+    url = f'{SERVER_URL}/create-controller/'
+    json_payload = json.dumps(payload)
+    response = requests.post(url, data=json_payload)
+
+    if response.status_code != 200:
+        print(f"Request failed with status code {response.status_code}")
+        exit(0)
+
+
+def input_controller(r1_inp, r2_inp):
+    my_url = f'{SERVER_URL}/input-controller/?inputs={r1_inp},{r2_inp}'
     res = requests.get(my_url)
     outputs = res.json().get('outputs')
     return outputs
@@ -42,13 +63,20 @@ def sim_enc(tf_input, Gp, sim_encoder, encryption_sim):
     iteration = 1
 
     start_time = time.time()
+    flag = False
     for r in tf_input:
 
         error = r - out
         error_encode = sim_encoder.encode(error, iteration)
         error_enc = encryption_sim.encrypt(error_encode)
-
-        out_enc = input_controller(error_enc)[0]
+        error_check = 0
+        error_check_encode = sim_encoder.encode(error_check, iteration)
+        error_check_enc = encryption_sim.encrypt(error_check_encode)
+        inp_result = input_controller(error_enc, error_check_enc)
+        out_enc = inp_result[0]
+        if not flag:
+            print(encryption_sim.decrypt(inp_result[1]))
+            flag = True
         out_dec = encryption_sim.decrypt(out_enc)
         out_decode = sim_encoder.decode(out_dec, iteration + 1)
 
@@ -57,7 +85,7 @@ def sim_enc(tf_input, Gp, sim_encoder, encryption_sim):
         time_sim.append(end_time - start_time)
         output.append(out)
         iteration += 1
-        if iteration == 10:
+        if iteration == 5:
             iteration = 1
             reset_controller()
 
@@ -68,40 +96,22 @@ plant = ss(np.array(AP), np.array(BP), np.array(CP), np.array(DP), np.array(INIT
 controller = ss(np.array(AC), np.array(BC), np.array(CC), np.array(DC))
 
 # Encrypted Control statespace
-Enc = Encryption(512)
+Enc = Encryption(128, False)
 n, g = Enc.publicKey()
 
-encoder = MED(n, 100)
-
-Ae = encoder.encode(np.array(AC))
-Be = encoder.encode(np.array(BC))
-Ce = encoder.encode(np.array(CC))
-De = encoder.encode(np.array(DC))
+encoder = MED(n, 1000)
 
 initial_value = encoder.encode(np.zeros((2, 1)))
-encrypted_initial_value = Enc.encrypt_mat(initial_value)
 
-payload = {
-    'A': Ae, 'B': Be, 'C': Ce, 'D': De, 'init': encrypted_initial_value, 'n': 1
-}
-
-url = f'{SERVER_URL}/create-controller/'
-json_payload = json.dumps(payload)
-response = requests.post(url, data=json_payload)
-
-if response.status_code == 200:
-    data = response.json()  # If the response is JSON
-else:
-    print(f"Request failed with status code {response.status_code}")
-    exit(0)
+create_controller(encoder)
 
 uc = 1
 r_encode = encoder.encode(uc)
 r_enc = Enc.encrypt(r_encode)
 
 start = 0
-end = 20
-ts = 0.1
+end = 5
+ts = 0.01
 length = int((end - start) / ts)
 t = np.linspace(start, end, length)
 u = [0] * length
@@ -109,9 +119,29 @@ y = sim(u, controller, plant)
 plant.reset()
 y_enc, time_enc = sim_enc(u, plant, encoder, Enc)
 
+
+plt.figure()
 plt.plot(t, y)
 plt.step(time_enc, y_enc)
 plt.plot(t, u, linestyle='--')
 plt.xlim([start, end])
 
+plt.legend(['Output (y)', 'Encrypted Output (y_enc)', 'Input (u)'])
+plt.xlabel('Time (s)')
+plt.ylabel('Amplitude')
+plt.title('System Response')
+
+plt.show()
+
+time_data = []
+for i in range(1, len(time_enc)):
+    time_data.append(time_enc[i] - time_enc[i - 1])
+
+
+plt.figure()
+plt.hist(time_data, bins=30, edgecolor='black')
+
+plt.title('Histogram of Control Sample time')
+plt.xlabel('Time Samples')
+plt.ylabel('Frequency')
 plt.show()

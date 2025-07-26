@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+env/
+venv/
+.venv/
+
+# IDE files
+.vscode/
+.idea/
+
+# Sensitive Data & Keys - VERY IMPORTANT
+*.crt
+*.key
+*.pem
+secret_*.txt
+
+# Database
+db.sqlite3
+
+# Simulation Data 
+results/
+
+output.txt
