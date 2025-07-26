@@ -17,10 +17,15 @@ def create_controller(c_encoder):
     encrypted_initial_value = Enc.encrypt_mat(initial_value)
 
     payload = {
-        'A': Ae, 'B': Be, 'C': Ce, 'D': De, 'init': encrypted_initial_value, 'n': 2
+        "A": Ae,
+        "B": Be,
+        "C": Ce,
+        "D": De,
+        "init": encrypted_initial_value,
+        "n": 2,
     }
 
-    url = f'{SERVER_URL}/create-controller/'
+    url = f"{SERVER_URL}/create-controller/"
     json_payload = json.dumps(payload)
     response = requests.post(url, data=json_payload)
 
@@ -30,14 +35,14 @@ def create_controller(c_encoder):
 
 
 def input_controller(r1_inp, r2_inp):
-    my_url = f'{SERVER_URL}/input-controller/?inputs={r1_inp},{r2_inp}'
+    my_url = f"{SERVER_URL}/input-controller/?inputs={r1_inp},{r2_inp}"
     res = requests.get(my_url)
-    outputs = res.json().get('outputs')
+    outputs = res.json().get("outputs")
     return outputs
 
 
 def reset_controller():
-    my_url = f'{SERVER_URL}/reset-controller/'
+    my_url = f"{SERVER_URL}/reset-controller/"
     res = requests.get(my_url)
     if res.status_code == 200:
         return True
@@ -65,7 +70,6 @@ def sim_enc(tf_input, Gp, sim_encoder, encryption_sim):
     start_time = time.time()
     flag = False
     for r in tf_input:
-
         error = r - out
         error_encode = sim_encoder.encode(error, iteration)
         error_enc = encryption_sim.encrypt(error_encode)
@@ -92,11 +96,13 @@ def sim_enc(tf_input, Gp, sim_encoder, encryption_sim):
     return output, time_sim
 
 
-plant = ss(np.array(AP), np.array(BP), np.array(CP), np.array(DP), np.array(INITIAL_COND))
+plant = ss(
+    np.array(AP), np.array(BP), np.array(CP), np.array(DP), np.array(INITIAL_COND)
+)
 controller = ss(np.array(AC), np.array(BC), np.array(CC), np.array(DC))
 
 # Encrypted Control statespace
-Enc = Encryption(128, False)
+Enc = Encryption(512, True)
 n, g = Enc.publicKey()
 
 encoder = MED(n, 1000)
@@ -123,13 +129,13 @@ y_enc, time_enc = sim_enc(u, plant, encoder, Enc)
 plt.figure()
 plt.plot(t, y)
 plt.step(time_enc, y_enc)
-plt.plot(t, u, linestyle='--')
+plt.plot(t, u, linestyle="--")
 plt.xlim([start, end])
 
-plt.legend(['Output (y)', 'Encrypted Output (y_enc)', 'Input (u)'])
-plt.xlabel('Time (s)')
-plt.ylabel('Amplitude')
-plt.title('System Response')
+plt.legend(["Output (y)", "Encrypted Output (y_enc)", "Input (u)"])
+plt.xlabel("Time (s)")
+plt.ylabel("Amplitude")
+plt.title("System Response")
 
 plt.show()
 
@@ -139,9 +145,9 @@ for i in range(1, len(time_enc)):
 
 
 plt.figure()
-plt.hist(time_data, bins=30, edgecolor='black')
+plt.hist(time_data, bins=30, edgecolor="black")
 
-plt.title('Histogram of Control Sample time')
-plt.xlabel('Time Samples')
-plt.ylabel('Frequency')
+plt.title("Histogram of Control Sample time")
+plt.xlabel("Time Samples")
+plt.ylabel("Frequency")
 plt.show()
